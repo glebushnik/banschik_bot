@@ -1,0 +1,42 @@
+services:
+  bot:
+    build: .
+    restart: unless-stopped
+    init: true
+    env_file: .env
+    environment:
+      DATA_DIR: /app/data
+      MODEL_CACHE_DIR: /app/data/models
+      BACKUP_DIR: /app/backups
+      SYSTEM_PROMPT_FILE: /app/prompts/system.txt
+      SEARXNG_URL: http://searxng:8080
+    volumes:
+      - bot-data:/app/data
+      - bot-backups:/app/backups
+      - ./prompts:/app/prompts:ro
+    depends_on:
+      - searxng
+    stop_grace_period: 120s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+  searxng:
+    image: docker.io/searxng/searxng:latest
+    restart: unless-stopped
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET:?Run python3 scripts/setup_env.py first}
+      FORCE_OWNERSHIP: "false"
+    volumes:
+      - ./deploy/searxng/settings.yml:/etc/searxng/settings.yml:ro
+    ports:
+      - "127.0.0.1:8080:8080"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+volumes:
+  bot-data:
+  bot-backups:
