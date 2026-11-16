@@ -82,6 +82,25 @@ async def test_cancellation_waits_for_native_work():
         await task
 
 
+async def test_worker_failure_does_not_swallow_cancellation():
+    started, finish = threading.Event(), threading.Event()
+
+    def fail():
+        started.set()
+        finish.wait(timeout=2)
+        raise ValueError("worker failed during shutdown")
+
+    task = asyncio.create_task(blocking(fail))
+    for _ in range(100):
+        if started.is_set():
+            break
+        await asyncio.sleep(0.01)
+    task.cancel()
+    finish.set()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+
 def test_running_job_recovers_on_restart(storage, config):
     save(storage, question="вопрос")
     job = storage.claim_job()
